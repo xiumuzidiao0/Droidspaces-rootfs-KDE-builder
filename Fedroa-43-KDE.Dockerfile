@@ -4,6 +4,7 @@ FROM fedora:43 AS customizer
 #######################################################
 ARG BUILD_KDE
 ARG PulseAudio
+ARG USERNAME_ARG=Gold
 ARG ENABLE_zh_tz_ARG
 ARG ENABLE_binfmt_ARG
 ARG ENABLE_yj_ARG
@@ -99,7 +100,7 @@ RUN if [ "$ENABLE_zh_tz_ARG" = "true" ]; then \
     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     # 删除默认可能存在的用户并创建新用户
     (userdel -r debian 2>/dev/null || true) && \
-    useradd -m -s /bin/bash Gold && echo "Gold:1234" | chpasswd 
+    useradd -m -s /bin/bash "$USERNAME_ARG" && echo "${USERNAME_ARG}:1234" | chpasswd
 
 # 添加环境变量
 RUN cat <<'EOF' > /etc/environment
@@ -123,8 +124,8 @@ RUN if [ "$PulseAudio" = "socket" ]; then \
 # 输入法开机自启动
 RUN <<'EOF_RUN'
     if [ "$ENABLE_srf_ARG" = "true" ]; then
-    mkdir -p /home/Gold/.config/autostart
-    cat <<'EOF' > /home/Gold/.config/autostart/fcitx5.desktop
+    mkdir -p "/home/${USERNAME_ARG}/.config/autostart"
+    cat <<'EOF' > "/home/${USERNAME_ARG}/.config/autostart/fcitx5.desktop"
 [Desktop Entry]
 Name=Fcitx5
 GenericName=Input Method
@@ -138,15 +139,15 @@ StartupNotify=false
 NoDisplay=true
 EOF
 fi
-    echo 'export XDG_RUNTIME_DIR=/run/user/$(id -u)' >> /home/Gold/.bashrc
+    echo 'export XDG_RUNTIME_DIR=/run/user/$(id -u)' >> "/home/${USERNAME_ARG}/.bashrc"
     if [ "$BUILD_KDE" = "min" ] || [ "$BUILD_KDE" = "conc" ] ; then
-    mkdir -p /home/Gold/.config 
-    cat <<'EOF' > /home/Gold/.config/kwinrc
+    mkdir -p "/home/${USERNAME_ARG}/.config"
+    cat <<'EOF' > "/home/${USERNAME_ARG}/.config/kwinrc"
 [Compositing]
 Enabled=false
 EOF
     fi
-    chown -R Gold:Gold /home/Gold
+    chown -R "${USERNAME_ARG}:${USERNAME_ARG}" "/home/${USERNAME_ARG}"
 EOF_RUN
 
 # 注意：这里将 debian_trixie 改为了 fedora_43。如果上游仓库没有提供 Fedora 版本的构建，这里会失败报错。
@@ -190,7 +191,7 @@ grep -q '^aid_net_admin:' /etc/group || echo 'aid_net_admin:x:3005:' >> /etc/gro
 getent group droidspaces-gpu >/dev/null || groupadd -g 786 -r droidspaces-gpu
 
 usermod -a -G aid_inet,aid_net_raw,input,video,tty,droidspaces-gpu root || true
-usermod -a -G aid_inet,aid_net_raw,input,video,tty,wheel,droidspaces-gpu Gold || true
+usermod -a -G aid_inet,aid_net_raw,input,video,tty,wheel,droidspaces-gpu "$USERNAME_ARG" || true
 
 # 确保未来通过 useradd 创建的新用户也会进入附加组 (Fedora 通过 /etc/default/useradd 处理)
 if [ -f /etc/default/useradd ]; then

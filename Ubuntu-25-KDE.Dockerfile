@@ -4,6 +4,7 @@ FROM ubuntu:25.10 AS customizer
 #######################################################
 ARG BUILD_KDE
 ARG PulseAudio
+ARG USERNAME_ARG=Gold
 ARG ENABLE_zh_tz_ARG
 ARG ENABLE_binfmt_ARG
 ARG ENABLE_yj_ARG
@@ -119,8 +120,8 @@ RUN sed -i '/en_US.UTF-8/s/^# //' /etc/locale.gen && \
     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     # Ubuntu 默认用户是 ubuntu，删除它避免冲突
     deluser --remove-home ubuntu || true && \
-    # 创建 Gold 用户并直接加入 shadow 组，确保锁屏验证权限
-    useradd -m -s /bin/bash -G shadow Gold && echo "Gold:1234" | chpasswd && \
+    # 创建默认用户并直接加入 shadow 组，确保锁屏验证权限
+    useradd -m -s /bin/bash -G shadow "$USERNAME_ARG" && echo "${USERNAME_ARG}:1234" | chpasswd && \
     systemctl enable ssh
 
 
@@ -146,8 +147,8 @@ RUN if [ "$PulseAudio" = "socket" ]; then \
 # 输入法开机自启动及 KDE 配置
 RUN <<'EOF_RUN'
     if [ "$ENABLE_srf_ARG" = "true" ]; then
-    mkdir -p /home/Gold/.config/autostart
-    cat <<'EOF' > /home/Gold/.config/autostart/fcitx5.desktop
+    mkdir -p "/home/${USERNAME_ARG}/.config/autostart"
+    cat <<'EOF' > "/home/${USERNAME_ARG}/.config/autostart/fcitx5.desktop"
 [Desktop Entry]
 Name=Fcitx5
 GenericName=Input Method
@@ -161,15 +162,15 @@ StartupNotify=false
 NoDisplay=true
 EOF
 fi
-    echo 'export XDG_RUNTIME_DIR=/run/user/$(id -u)' >> /home/Gold/.bashrc
+    echo 'export XDG_RUNTIME_DIR=/run/user/$(id -u)' >> "/home/${USERNAME_ARG}/.bashrc"
     if [ "$BUILD_KDE" = "min" ] || [ "$BUILD_KDE" = "conc" ] ; then
-    mkdir -p /home/Gold/.config 
-    cat <<'EOF' > /home/Gold/.config/kwinrc
+    mkdir -p "/home/${USERNAME_ARG}/.config"
+    cat <<'EOF' > "/home/${USERNAME_ARG}/.config/kwinrc"
 [Compositing]
 Enabled=false
 EOF
     fi
-    chown -R Gold:Gold /home/Gold
+    chown -R "${USERNAME_ARG}:${USERNAME_ARG}" "/home/${USERNAME_ARG}"
 EOF_RUN
 
 # Mesa 驱动适配
@@ -211,7 +212,7 @@ grep -q '^aid_net_admin:' /etc/group || echo 'aid_net_admin:x:3005:' >> /etc/gro
 
 getent group droidspaces-gpu >/dev/null || groupadd -g 786 -r droidspaces-gpu
 usermod -a -G aid_inet,aid_net_raw,input,video,tty,droidspaces-gpu root || true
-usermod -a -G aid_inet,aid_net_raw,input,video,tty,sudo,droidspaces-gpu Gold || true
+usermod -a -G aid_inet,aid_net_raw,input,video,tty,sudo,droidspaces-gpu "$USERNAME_ARG" || true
 
 grep -q '^_apt:' /etc/passwd && usermod -g aid_inet _apt || true
 

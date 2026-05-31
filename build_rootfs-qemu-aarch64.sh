@@ -5,12 +5,14 @@
 # Configuration
 : "${VERSION:=dev}"
 DATE=$(date +%Y%m%d)
+USERNAME="Gold"
 
 # Parse arguments
-while getopts "i:v:" opt; do
+while getopts "i:v:u:" opt; do
   case $opt in
     i) DOCKERFILE="$OPTARG" ;;
     v) VERSION="$OPTARG" ;;
+    u) USERNAME="$OPTARG" ;;
     *) echo "Usage: $0 -i <template.Dockerfile> [-v <version>]" ; exit 1 ;;
   esac
 done
@@ -25,6 +27,11 @@ if [ ! -f "$DOCKERFILE" ]; then
     exit 1
 fi
 
+if ! [[ "$USERNAME" =~ ^[A-Za-z_][A-Za-z0-9_-]{0,31}$ ]]; then
+    echo "Error: Invalid username '$USERNAME'. Use letters, digits, underscores or hyphens, starting with a letter or underscore."
+    exit 1
+fi
+
 # Extract prefix (e.g., Ubuntu-24.04 from Ubuntu-24.04.Dockerfile)
 PREFIX=$(echo "$DOCKERFILE" | sed 's/\.Dockerfile//')
 
@@ -32,6 +39,7 @@ echo "========================================================="
 echo " Starting Build: $PREFIX"
 echo " Using Template: $DOCKERFILE"
 echo " Build Version : $VERSION"
+echo " RootFS User   : $USERNAME"
 echo "========================================================="
 
 # 1. Environment Initialization
@@ -61,6 +69,7 @@ docker buildx build \
   --platform linux/arm64 \
   --target export \
   --output type=tar,dest="$TEMP_TAR" \
+  --build-arg USERNAME_ARG="$USERNAME" \
   -f "$DOCKERFILE" \
   .
 

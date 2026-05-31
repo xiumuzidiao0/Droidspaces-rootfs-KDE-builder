@@ -4,6 +4,7 @@ FROM ubuntu:25.10 AS customizer
 #######################################################
 ARG BUILD_KDE
 ARG PulseAudio
+ARG BUILD_BROWSER=firefox
 ARG USERNAME_ARG=Gold
 ARG ENABLE_zh_tz_ARG
 ARG ENABLE_binfmt_ARG
@@ -65,6 +66,22 @@ RUN apt-get update && \
         kfind plasma-systemmonitor filelight glmark2 vkmark systemsettings kde-config-screenlocker kio-extras xdg-user-dirs dolphin-plugins ffmpegthumbs kdegraphics-thumbnailers \
         kimageformat6-plugins plasma-browser-integration libcanberra-pulse gstreamer1.0-plugins-base gstreamer1.0-plugins-good sound-theme-freedesktop \
         polkit-kde-agent-1 libpam-systemd libpam-modules libpam-kwallet5 plasma-session-x11 language-pack-kde-zh-hans language-pack-zh-hans qt6-translations-l10n; \
+    fi && \
+    if [ "$BUILD_BROWSER" = "firefox" ] && [ "$BUILD_KDE" != "none" ]; then \
+        install -d -m 0755 /etc/apt/keyrings && \
+        wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O /etc/apt/keyrings/packages.mozilla.org.asc && \
+        echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" > /etc/apt/sources.list.d/mozilla.list && \
+        printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' > /etc/apt/preferences.d/mozilla && \
+        apt-get update && \
+        apt-get install -y --no-install-recommends firefox; \
+    elif [ "$BUILD_BROWSER" = "chromium" ] && [ "$BUILD_KDE" != "none" ]; then \
+        apt-get install -y --no-install-recommends chromium-browser; \
+    fi && \
+    if [ "$BUILD_BROWSER" != "none" ] && [ "$BUILD_KDE" != "none" ]; then \
+        BROWSER_DESKTOP="firefox.desktop"; \
+        if [ "$BUILD_BROWSER" = "chromium" ]; then BROWSER_DESKTOP="chromium-browser.desktop"; fi; \
+        mkdir -p /etc/xdg && \
+        printf '[Default Applications]\ntext/html=%s\nx-scheme-handler/http=%s\nx-scheme-handler/https=%s\n' "$BROWSER_DESKTOP" "$BROWSER_DESKTOP" "$BROWSER_DESKTOP" > /etc/xdg/mimeapps.list; \
     fi && \
     ######################################################################################################
     if [ "$ENABLE_app_store_ARG" = "true" ] && [ "$BUILD_KDE" != "none" ]; then \

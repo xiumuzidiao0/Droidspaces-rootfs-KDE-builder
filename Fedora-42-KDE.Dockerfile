@@ -1,5 +1,5 @@
 ARG TARGETPLATFORM
-FROM ubuntu:24.04 AS customizer
+FROM fedora:42 AS customizer
 
 #######################################################
 ARG BUILD_KDE
@@ -20,57 +20,37 @@ ARG ENABLE_tmoe_ARG
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-
-# 优先复制自定义脚本
-COPY scripts/download-firmware /usr/local/bin/
-
-# 将自定义的 bashrc 脚本复制到根文件系统的 profile 目录
-COPY scripts/bashrc.sh /etc/profile.d/ds-aliases.sh
-
-# 赋予相关脚本可执行权限
-RUN chmod +x /usr/local/bin/download-firmware /etc/profile.d/ds-aliases.sh
-
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    # 核心工具组件
-    bash jq dialog coreutils file findutils grep sed gawk curl wget ca-certificates locales bash-completion udev dbus systemd-sysv systemd-resolved neofetch \
+RUN dnf install -y --setopt=install_weak_deps=False \
+    # 核心工具组件 
+    bash jq dialog coreutils file findutils grep sed gawk curl wget ca-certificates bash-completion systemd-udev dbus-daemon systemd systemd-resolved fastfetch \
     # 用户请求的基础开发/编辑工具
-    git nano  sudo \
+    git nano sudo \
     # 网络与 SSH 工具
-    openssh-server net-tools iptables iputils-ping iproute2 dnsutils \
+    openssh-server net-tools iptables iptables-legacy iputils iproute bind-utils \
     # 用于系统监控的 procps 进程工具
-    procps \
-    # 核心内核模块支持
-    kmod tzdata && \
+    procps-ng \
+    # 核心内核模块支持及语言包
+    kmod tzdata glibc-locale-source glibc-langpack-en glibc-langpack-zh && \
     ############################################## KDE支持 ################################################
     # 最小化KDE
-    # 解除底层系统对中文等翻译文件(.mo)的剔除规则，防止安装桌面时丢包
-    sed -i 's|^path-exclude=/usr/share/locale/\*/LC_MESSAGES/\*.mo|#&|' /etc/dpkg/dpkg.cfg.d/excludes || true && \
+    echo "%_install_langs all" > /etc/rpm/macros.image-language-conf && \
     if [ "$BUILD_KDE" = "min" ]; then \
-        apt-get install -y --no-install-recommends \
-        dbus-x11 x11-xserver-utils fonts-noto-cjk fonts-noto-color-emoji kde-plasma-desktop pipewire pipewire-pulse wireplumber powerdevil kscreen plasma-pa ark kwin-x11 upower konsole \
-        dolphin kate kinfocenter mesa-utils pulseaudio-utils vulkan-tools  dbus-user-session polkit-kde-agent-1; \
+        dnf install -y --setopt=install_weak_deps=False \
+        dbus-x11 xrandr xset xrdb xhost google-noto-cjk-fonts google-noto-emoji-color-fonts plasma-desktop pipewire pipewire-pulseaudio wireplumber powerdevil kscreen plasma-pa ark kwin upower konsole \
+        dolphin kate kinfocenter glx-utils pulseaudio-utils vulkan-tools fedora-logos plasma-workspace plasma-workspace-x11 kwin-x11; \
     fi && \
     # 精简KDE
     if [ "$BUILD_KDE" = "conc" ]; then \
-        apt-get install -y --no-install-recommends \
-        dbus-x11 x11-xserver-utils fonts-noto-cjk fonts-noto-color-emoji kde-plasma-desktop kubuntu-settings-desktop kubuntu-wallpapers \
-        pipewire pipewire-pulse wireplumber powerdevil kscreen plasma-pa ark kwin-x11 upower konsole \
-        dolphin kate kinfocenter mesa-utils pulseaudio-utils vulkan-tools dbus-user-session aha clinfo dmidecode libdisplay-info-bin pciutils wayland-utils xserver-xorg \
-        kfind plasma-systemmonitor filelight glmark2 systemsettings kde-config-screenlocker kio-extras xdg-user-dirs dolphin-plugins ffmpegthumbs kdegraphics-thumbnailers \
-        kimageformat-plugins plasma-browser-integration libcanberra-pulse gstreamer1.0-plugins-base gstreamer1.0-plugins-good sound-theme-freedesktop \
-        polkit-kde-agent-1 libpam-systemd libpam-modules libpam-kwallet5 language-pack-kde-zh-hans language-pack-zh-hans qt6-translations-l10n; \
+        dnf install -y --setopt=install_weak_deps=False \
+        dbus-x11 xrandr xset xrdb xhost google-noto-cjk-fonts google-noto-emoji-color-fonts plasma-desktop pipewire pipewire-pulseaudio wireplumber powerdevil kscreen plasma-pa ark kwin upower konsole \
+        dolphin kate kinfocenter glx-utils pulseaudio-utils vulkan-tools fedora-logos aha clinfo dmidecode libdisplay-info pciutils wayland-utils xorg-x11-server-Xorg \
+        kfind plasma-systemmonitor filelight glmark2 vkmark systemsettings kscreenlocker kio-extras xdg-user-dirs dolphin-plugins ffmpegthumbs kdegraphics-thumbnailers \
+        kf6-kimageformats plasma-browser-integration libcanberra-gtk3 gstreamer1-plugins-base gstreamer1-plugins-good sound-theme-freedesktop plasma-workspace plasma-workspace-x11 kwin-x11; \
     fi && \
     if [ "$BUILD_BROWSER" = "firefox" ] && [ "$BUILD_KDE" != "none" ]; then \
-        install -d -m 0755 /etc/apt/keyrings && \
-        wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O /etc/apt/keyrings/packages.mozilla.org.asc && \
-        echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" > /etc/apt/sources.list.d/mozilla.list && \
-        printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' > /etc/apt/preferences.d/mozilla && \
-        apt-get update && \
-        apt-get install -y --no-install-recommends firefox; \
+        dnf install -y --setopt=install_weak_deps=False firefox; \
     elif [ "$BUILD_BROWSER" = "chromium" ] && [ "$BUILD_KDE" != "none" ]; then \
-        apt-get install -y --no-install-recommends chromium-browser; \
+        dnf install -y --setopt=install_weak_deps=False chromium; \
     fi && \
     if [ "$BUILD_BROWSER" != "none" ] && [ "$BUILD_KDE" != "none" ]; then \
         BROWSER_DESKTOP="firefox.desktop"; \
@@ -80,7 +60,7 @@ RUN apt-get update && \
     fi && \
     ######################################################################################################
     if [ "$ENABLE_app_store_ARG" = "true" ] && [ "$BUILD_KDE" != "none" ]; then \
-        apt-get install -y --no-install-recommends plasma-discover packagekit packagekit-tools polkit-kde-agent-1 && \
+        dnf install -y --setopt=install_weak_deps=False plasma-discover plasma-discover-packagekit PackageKit PackageKit-Qt6 polkit-kde && \
         mkdir -p /etc/polkit-1/rules.d && \
         printf '%s\n' \
         'polkit.addRule(function(action, subject) {' \
@@ -91,27 +71,27 @@ RUN apt-get update && \
         '});' \
         > /etc/polkit-1/rules.d/49-droidspaces-packagekit.rules; \
     fi && \
-    #输入法 fcitx5 (可选)
+    # 输入法 fcitx5 (可选)
     if [ "$ENABLE_srf_ARG" = "true" ]; then \
-        apt-get install -y fcitx5; \
+        dnf install -y  fcitx5 fcitx5-qt fcitx5-gtk ; \
     fi && \
     if [ "$ENABLE_srf_ARG" = "true" ] && [ "$ENABLE_zh_tz_ARG" = "true" ]; then \
-        apt-get install -y  fcitx5-chinese-addons; \
+        dnf install -y --setopt=install_weak_deps=False fcitx5-chinese-addons; \
     fi && \
     ## 开发工具集成 (可选)
     if [ "$ENABLE_kfgj_ARG" = "true" ]; then \
-        apt-get install -y --no-install-recommends \
-        build-essential gcc g++ make cmake autoconf automake libtool pkg-config clang llvm python3 python3-pip python3-dev python3-venv python-is-python3; \
+        dnf install -y --setopt=install_weak_deps=False \
+        gcc gcc-c++ make cmake autoconf automake libtool pkgconf clang llvm python3 python3-pip python3-devel; \
     fi && \
     ## 压缩工具扩展 (可选)
     if [ "$ENABLE_zip_ARG" = "true" ]; then \
-        apt-get install -y --no-install-recommends \
-        zip unzip p7zip-full bzip2 xz-utils tar gzip; \
+        dnf install -y --setopt=install_weak_deps=False \
+        zip unzip p7zip p7zip-plugins bzip2 xz tar gzip; \
     fi && \
-    ## docker (可选)
+    ## docker (可选) 
     if [ "$ENABLE_docker_ARG" = "true" ]; then \
-        apt-get install -y --no-install-recommends \
-        docker.io docker-compose-v2; \
+        dnf install -y --setopt=install_weak_deps=False \
+        moby-engine docker-compose docker-cli; \
     fi && \
     ## 集成tmoe (可选)
     if [ "$ENABLE_tmoe_ARG" = "true" ]; then \
@@ -119,35 +99,33 @@ RUN apt-get update && \
         ln -sf /usr/local/etc/tmoe-linux/git/debian.sh /usr/local/bin/tmoe && \
         chmod -R 755 /usr/local/etc/tmoe-linux; \
     fi && \
-    apt-get autoremove -y && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    dnf clean all && \
+    rm -rf /var/cache/dnf
 
-# 强制配置使用 iptables-legacy（这是兼容 Android 内核的硬性要求）
-RUN update-alternatives --set iptables /usr/sbin/iptables-legacy && \
-    update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
+# 强制配置使用 iptables-legacy（兼容 Android 内核的硬性要求）
+RUN ln -sf /usr/sbin/iptables-legacy /usr/sbin/iptables && \
+    ln -sf /usr/sbin/ip6tables-legacy /usr/sbin/ip6tables && \
+    ln -sf /usr/sbin/iptables-legacy-save /usr/sbin/iptables-save && \
+    ln -sf /usr/sbin/iptables-legacy-restore /usr/sbin/iptables-restore && \
+    ln -sf /usr/sbin/ip6tables-legacy-save /usr/sbin/ip6tables-save && \
+    ln -sf /usr/sbin/ip6tables-legacy-restore /usr/sbin/ip6tables-restore
 
-RUN sed -i '/en_US.UTF-8/s/^# //' /etc/locale.gen && \
-    if [ "$ENABLE_zh_tz_ARG" = "true" ]; then \
-        export DEBIAN_FRONTEND=noninteractive && \
+RUN if [ "$ENABLE_zh_tz_ARG" = "true" ]; then \
         ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
         echo "Asia/Shanghai" > /etc/timezone && \
-        dpkg-reconfigure -f noninteractive tzdata && \
-        sed -i '/zh_CN.UTF-8/s/^# //' /etc/locale.gen && \
-        locale-gen && \
-        update-locale LANG=zh_CN.UTF-8 LC_ALL=zh_CN.UTF-8; \
+        echo "LANG=zh_CN.UTF-8" > /etc/locale.conf && \
+        echo "LC_ALL=zh_CN.UTF-8" >> /etc/locale.conf; \
     else \
-        locale-gen && \
-        update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8; \
+        echo "LANG=en_US.UTF-8" > /etc/locale.conf && \
+        echo "LC_ALL=en_US.UTF-8" >> /etc/locale.conf; \
     fi && \
-    # 配置 SSH 服务（禁用 root 密码登录，但允许常规密码认证）
+    # 配置 SSH 服务
     mkdir -p /var/run/sshd && \
     sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config && \
     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    # 如果容器内存在默认的 debian 用户，则将其连同家目录一起删除
-    deluser --remove-home ubuntu || true && \
-    useradd -m -s /bin/bash "$USERNAME_ARG" && echo "${USERNAME_ARG}:1234" | chpasswd && \
-    systemctl enable ssh
+    # 删除默认可能存在的用户并创建新用户
+    (userdel -r debian 2>/dev/null || true) && \
+    useradd -m -s /bin/bash "$USERNAME_ARG" && echo "${USERNAME_ARG}:1234" | chpasswd
 
 # 添加环境变量
 RUN cat <<'EOF' > /etc/environment
@@ -197,11 +175,12 @@ EOF
     chown -R "${USERNAME_ARG}:${USERNAME_ARG}" "/home/${USERNAME_ARG}"
 EOF_RUN
 
+# 注意：这里将 debian_trixie 改为了 fedora_42。如果上游仓库没有提供 Fedora 版本的构建，这里会失败报错。
 RUN if [ "$ENABLE_mesa_ARG" = "true" ]; then \
         echo "--> [开启] 正在下载并安装最新版 Mesa 驱动..." && \
         URL=$(curl -s https://api.github.com/repos/lfdevs/mesa-for-android-container/releases/latest | \
-        jq -r '.assets[] | select(.name | test("mesa-for-android-container_.*_ubuntu_noble_arm64\\.tar\\.gz")) | .browser_download_url' | head -1) && \
-        if [ -z "$URL" ] || [ "$URL" = "null" ]; then echo "获取下载链接失败，可能是触发了 GitHub API 速率限制"; exit 1; fi && \
+        jq -r '.assets[] | select(.name | test("mesa-for-android-container_.*_fedora_42_arm64\\.tar\\.gz")) | .browser_download_url' | head -1) && \
+        if [ -z "$URL" ] || [ "$URL" = "null" ]; then echo "获取下载链接失败，可能触发了 GitHub API 限制，或不存在适用于 fedora_42 的包"; exit 1; fi && \
         wget -q --tries=5 --waitretry=3 -O /tmp/mesa.tar.gz "$URL" && \
         tar -zxf /tmp/mesa.tar.gz -C / && \
         rm /tmp/mesa.tar.gz && \
@@ -230,33 +209,25 @@ EOF
 RUN <<'EOF_RUN'
 
 # --- 1. 常规兼容性修复 ---
-# 建立 Android 网络权限组（在 Android 内核上运行 Linux 容器时，必须有这些 GID 才能正常访问网络 socket）
 grep -q '^aid_inet:' /etc/group     || echo 'aid_inet:x:3003:'    >> /etc/group
 grep -q '^aid_net_raw:' /etc/group || echo 'aid_net_raw:x:3004:' >> /etc/group
 grep -q '^aid_net_admin:' /etc/group || echo 'aid_net_admin:x:3005:' >> /etc/group
 
-# 检查并创建 droidspaces-gpu 组
 getent group droidspaces-gpu >/dev/null || groupadd -g 786 -r droidspaces-gpu
-# 为 root 用户赋予访问 Android 硬件及网络的权限组
+
 usermod -a -G aid_inet,aid_net_raw,input,video,tty,droidspaces-gpu root || true
-usermod -a -G aid_inet,aid_net_raw,input,video,tty,sudo,droidspaces-gpu "$USERNAME_ARG" || true
+usermod -a -G aid_inet,aid_net_raw,input,video,tty,wheel,droidspaces-gpu "$USERNAME_ARG" || true
 
-# 将 _apt 的主用户组改为 aid_inet，确保 apt 包管理器在 Android 环境下可以正常联网
-grep -q '^_apt:' /etc/passwd && usermod -g aid_inet _apt || true
-
-# 确保未来通过 adduser 创建的所有新用户，都会被默认加入这些 Android 硬件与网络组
-if [ -f /etc/adduser.conf ]; then
-    sed -i '/^EXTRA_GROUPS=/d; /^ADD_EXTRA_GROUPS=/d' /etc/adduser.conf
-    echo 'ADD_EXTRA_GROUPS=1' >> /etc/adduser.conf
-    echo 'EXTRA_GROUPS="aid_inet aid_net_raw input video tty"' >> /etc/adduser.conf
+# 确保未来通过 useradd 创建的新用户也会进入附加组 (Fedora 通过 /etc/default/useradd 处理)
+if [ -f /etc/default/useradd ]; then
+    sed -i '/^GROUPS=/d' /etc/default/useradd
+    echo 'GROUPS="aid_inet,aid_net_raw,input,video,tty"' >> /etc/default/useradd
 fi
 
 # --- 2. 针对 Systemd 的特定修复 ---
-# 屏蔽在 Android 内核下容易引发报错或死锁的阻塞服务
 ln -sf /dev/null /etc/systemd/system/systemd-networkd-wait-online.service
 ln -sf /dev/null /etc/systemd/system/systemd-journald-audit.socket
 
-# 优化 Journald 日志配置（跳过内核审计、KMsg 等 Android 内核不兼容或权限受限的日志源）
 cat >> /etc/systemd/journald.conf << 'EOT'
 [Journal]
 ReadKMsg=no
@@ -274,7 +245,7 @@ MaxLevelStore=info
 EOT
 
 mkdir -p /etc/systemd/system/multi-user.target.wants
-GUEST_SYSTEMD_PATH="/lib/systemd/system"
+GUEST_SYSTEMD_PATH="/usr/lib/systemd/system"
 
 if [ -f "$GUEST_SYSTEMD_PATH/dbus.service" ]; then
     ln -sf "$GUEST_SYSTEMD_PATH/dbus.service" "/etc/systemd/system/multi-user.target.wants/dbus.service"
@@ -292,7 +263,6 @@ else
     done
 fi
 
-# 在 systemd-logind 中禁用电源键行为处理（防止容器误拦截或处理宿主机的实体电源按键事件）
 mkdir -p /etc/systemd/logind.conf.d
 cat > /etc/systemd/logind.conf.d/99-power-key.conf << 'EOF'
 [Login]
@@ -304,7 +274,6 @@ HandlePowerKeyLongPressHibernate=ignore
 EOF
 
 # 应用 udev 覆盖配置
-# 1. 触发器覆盖：限制 udevadm trigger 的扫描范围（防止冷插拔时全面扫描 Android 宿主机硬件导致卡死或冲突）
 mkdir -p /etc/systemd/system/systemd-udev-trigger.service.d
 cat > /etc/systemd/system/systemd-udev-trigger.service.d/override.conf << 'EOF'
 [Service]
@@ -312,14 +281,11 @@ ExecStart=
 ExecStart=-/usr/bin/udevadm trigger --subsystem-match=usb --subsystem-match=block --subsystem-match=input --subsystem-match=tty --subsystem-match=net
 EOF
 
-# 2. 针对只读文件系统路径（ConditionPathIsReadWrite）的覆盖，防止 udev 相关服务因为路径只读而报错中断
 for unit in systemd-udevd.service systemd-udev-trigger.service systemd-udev-settle.service systemd-udevd-kernel.socket systemd-udevd-control.socket; do
     mkdir -p "/etc/systemd/system/${unit}.d"
     printf "[Unit]\nConditionPathIsReadWrite=\n" > "/etc/systemd/system/${unit}.d/99-readonly-fix.conf"
 done
 
-# 限制特定的网络服务：只有当容器配置为 NAT 模式时才允许启动
-# 这可以有效防止容器在“主机网络模式（Host Mode）”下运行时破坏手机原本的蜂窝移动数据网络
 for unit in NetworkManager.service dhcpcd.service systemd-resolved.service systemd-networkd.service; do
     if [ -f "$GUEST_SYSTEMD_PATH/$unit" ] || [ -f "/etc/systemd/system/multi-user.target.wants/$unit" ]; then
         mkdir -p "/etc/systemd/system/${unit}.d"
@@ -330,7 +296,7 @@ ExecCondition=/bin/sh -c "grep -q 'net_mode=nat' /run/droidspaces/container.conf
 EOF
     fi
 done
-# 仅在启用硬件访问时限制 udev 服务启动
+
 for unit in systemd-udevd.service systemd-udev-trigger.service systemd-udev-settle.service; do
     if [ -f "$GUEST_SYSTEMD_PATH/$unit" ] || [ -f "/etc/systemd/system/multi-user.target.wants/$unit" ]; then
         mkdir -p "/etc/systemd/system/${unit}.d"
@@ -342,7 +308,6 @@ EOF
     fi
 done
 
-# 针对 Android 环境微调日志轮转（logrotate）的最大容量限制
 if [ -f /etc/logrotate.conf ]; then
     sed -i 's/^#maxsize.*/maxsize 50M/' /etc/logrotate.conf
     if ! grep -q "maxsize 50M" /etc/logrotate.conf; then
@@ -350,9 +315,6 @@ if [ -f /etc/logrotate.conf ]; then
     fi
 fi
 
-
-
-# 写入修复完成的标记和时间戳
 echo "Post-extraction fixes applied on $(date)" > /etc/droidspaces
 EOF_RUN
 
@@ -364,41 +326,22 @@ RUN if [ "$ENABLE_binfmt_ARG" = "false" ]; then \
         rm -rf /etc/systemd/system/qemu-binfmt-register.service ; \
     fi
 
+# 注意：Fedora 无法像 Debian 的 dpkg 那样直接添加 amd64 异构架构
 RUN if [ "$ENABLE_binfmt_ARG" = "true" ]; then \
         chmod +x /usr/local/bin/qemu-binfmt-register.sh && \
         chmod 644 /etc/systemd/system/qemu-binfmt-register.service && \
         mkdir -p /etc/systemd/system/multi-user.target.wants && \
         ln -sf /etc/systemd/system/qemu-binfmt-register.service /etc/systemd/system/multi-user.target.wants/qemu-binfmt-register.service && \
-        apt-get purge -y qemu-* binfmt-support || true && \
-        apt-get autoremove -y && \
-        apt-get autoclean && \
-        rm -rf /var/lib/binfmts/* && \
-        rm -rf /etc/binfmt.d/* && \
-        rm -rf /usr/lib/binfmt.d/qemu-* && \
-        apt-get update && \
-        apt-get install -y qemu-user-static && \
-        apt-get install -y binfmt-support && \
-        dpkg --add-architecture amd64 && \
-        sed -i '/^Types: deb$/a Architectures: arm64 armhf' /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Types: deb" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "URIs: http://archive.ubuntu.com/ubuntu/" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Suites: noble noble-updates noble-security" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Components: main universe restricted multiverse" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Architectures: amd64" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        apt-get update && \
-        apt-get install -y libc6:amd64; \
+        dnf install -y --setopt=install_weak_deps=False qemu-user-static; \
     else \
         rm -f /usr/local/bin/qemu-binfmt-register.sh /etc/systemd/system/qemu-binfmt-register.service; \
     fi
 
-# 最终清理 APT 包管理器缓存，尽可能缩减镜像层体积
-RUN apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# 最终清理 DNF 缓存以缩减镜像体积
+RUN dnf clean all && \
+    rm -rf /var/cache/dnf/* /tmp/* /var/tmp/*
 
-# 阶段 2：将完整的根文件系统导出到 scratch（空白层），以便外部直接提取或打包成 tarfs
+# 阶段 2：将完整的根文件系统导出到 scratch
 FROM scratch AS export
 
-# 从 customizer 编译阶段将所有定制好的根文件系统内容整体拷贝出来
 COPY --from=customizer / /

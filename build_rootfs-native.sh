@@ -5,13 +5,15 @@ ARCH=$(uname -m)          # 获取当前系统架构
 ENABLE_binfmt="false"
 USERNAME="Gold"
 ENABLE_app_store="false"
+BUILD_BROWSER="firefox"
 # 解析输入参数 (-i 指定 Dockerfile，-v 指定版本号)
-while getopts "i:v:K:P:u:a:b:c:d:e:f:g:h:s:j:" opt; do
+while getopts "i:v:K:P:w:u:a:b:c:d:e:f:g:h:s:j:" opt; do
   case $opt in
     i) DOCKERFILE="$OPTARG" ;; # -i 参数赋值给 DOCKERFILE 变量
     v) VERSION="$OPTARG" ;;    # -v 参数赋值给 VERSION 变量
     K) BUILD_KDE="$OPTARG"  ;;
     P) PulseAudio="$OPTARG"  ;;
+    w) BUILD_BROWSER="$OPTARG"  ;;
     u) USERNAME="$OPTARG"  ;;
     g) ENABLE_zh_tz="$OPTARG"  ;;# 中文支持
     a) ENABLE_binfmt="$OPTARG" ;; # -a 跨架构支持
@@ -44,6 +46,14 @@ if ! [[ "$USERNAME" =~ ^[A-Za-z_][A-Za-z0-9_-]{0,31}$ ]]; then
     echo "Error: Invalid username '$USERNAME'. Use letters, digits, underscores or hyphens, starting with a letter or underscore."
     exit 1
 fi
+
+case "$BUILD_BROWSER" in
+    firefox|chromium|none) ;;
+    *)
+        echo "Error: Invalid browser '$BUILD_BROWSER'. Use firefox, chromium, or none."
+        exit 1
+        ;;
+esac
 
 PREFIX=$(echo "$DOCKERFILE" | sed 's/\.Dockerfile//')
 
@@ -89,6 +99,7 @@ docker buildx build \
   --output type=tar,dest="$TEMP_TAR" \
   --build-arg BUILD_KDE="$BUILD_KDE" \
   --build-arg PulseAudio="$PulseAudio" \
+  --build-arg BUILD_BROWSER="$BUILD_BROWSER" \
   --build-arg USERNAME_ARG="$USERNAME" \
   --build-arg ENABLE_zh_tz_ARG="$ENABLE_zh_tz" \
   --build-arg ENABLE_binfmt_ARG="$ENABLE_binfmt" \

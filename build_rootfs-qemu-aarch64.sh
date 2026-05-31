@@ -7,13 +7,15 @@
 DATE=$(date +%Y%m%d)
 USERNAME="Gold"
 ENABLE_app_store="false"
+BUILD_BROWSER="firefox"
 
 # Parse arguments
-while getopts "i:v:u:s:" opt; do
+while getopts "i:v:u:w:s:" opt; do
   case $opt in
     i) DOCKERFILE="$OPTARG" ;;
     v) VERSION="$OPTARG" ;;
     u) USERNAME="$OPTARG" ;;
+    w) BUILD_BROWSER="$OPTARG" ;;
     s) ENABLE_app_store="$OPTARG" ;;
     *) echo "Usage: $0 -i <template.Dockerfile> [-v <version>]" ; exit 1 ;;
   esac
@@ -34,6 +36,14 @@ if ! [[ "$USERNAME" =~ ^[A-Za-z_][A-Za-z0-9_-]{0,31}$ ]]; then
     exit 1
 fi
 
+case "$BUILD_BROWSER" in
+    firefox|chromium|none) ;;
+    *)
+        echo "Error: Invalid browser '$BUILD_BROWSER'. Use firefox, chromium, or none."
+        exit 1
+        ;;
+esac
+
 # Extract prefix (e.g., Ubuntu-24.04 from Ubuntu-24.04.Dockerfile)
 PREFIX=$(echo "$DOCKERFILE" | sed 's/\.Dockerfile//')
 
@@ -42,6 +52,7 @@ echo " Starting Build: $PREFIX"
 echo " Using Template: $DOCKERFILE"
 echo " Build Version : $VERSION"
 echo " RootFS User   : $USERNAME"
+echo " Browser       : $BUILD_BROWSER"
 echo " App Store     : $ENABLE_app_store"
 echo "========================================================="
 
@@ -72,6 +83,7 @@ docker buildx build \
   --platform linux/arm64 \
   --target export \
   --output type=tar,dest="$TEMP_TAR" \
+  --build-arg BUILD_BROWSER="$BUILD_BROWSER" \
   --build-arg USERNAME_ARG="$USERNAME" \
   --build-arg ENABLE_app_store_ARG="$ENABLE_app_store" \
   -f "$DOCKERFILE" \

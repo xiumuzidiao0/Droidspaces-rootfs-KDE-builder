@@ -4,6 +4,7 @@ FROM fedora:43 AS customizer
 #######################################################
 ARG BUILD_KDE
 ARG PulseAudio
+ARG BUILD_BROWSER=firefox
 ARG USERNAME_ARG=Gold
 ARG ENABLE_zh_tz_ARG
 ARG ENABLE_binfmt_ARG
@@ -44,7 +45,18 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         dbus-x11 xrandr xset xrdb xhost google-noto-cjk-fonts google-noto-emoji-color-fonts plasma-desktop pipewire pipewire-pulseaudio wireplumber powerdevil kscreen plasma-pa ark kwin upower konsole \
         dolphin kate kinfocenter glx-utils pulseaudio-utils vulkan-tools fedora-logos aha clinfo dmidecode libdisplay-info pciutils wayland-utils xorg-x11-server-Xorg \
         kfind plasma-systemmonitor filelight glmark2 vkmark systemsettings kscreenlocker kio-extras xdg-user-dirs dolphin-plugins ffmpegthumbs kdegraphics-thumbnailers \
-        kf6-kimageformats plasma-browser-integration libcanberra-gtk3 gstreamer1-plugins-base gstreamer1-plugins-good sound-theme-freedesktop chromium plasma-workspace plasma-workspace-x11 kwin-x11; \
+        kf6-kimageformats plasma-browser-integration libcanberra-gtk3 gstreamer1-plugins-base gstreamer1-plugins-good sound-theme-freedesktop plasma-workspace plasma-workspace-x11 kwin-x11; \
+    fi && \
+    if [ "$BUILD_BROWSER" = "firefox" ] && [ "$BUILD_KDE" != "none" ]; then \
+        dnf install -y --setopt=install_weak_deps=False firefox; \
+    elif [ "$BUILD_BROWSER" = "chromium" ] && [ "$BUILD_KDE" != "none" ]; then \
+        dnf install -y --setopt=install_weak_deps=False chromium; \
+    fi && \
+    if [ "$BUILD_BROWSER" != "none" ] && [ "$BUILD_KDE" != "none" ]; then \
+        BROWSER_DESKTOP="firefox.desktop"; \
+        if [ "$BUILD_BROWSER" = "chromium" ]; then BROWSER_DESKTOP="chromium-browser.desktop"; fi; \
+        mkdir -p /etc/xdg && \
+        printf '[Default Applications]\ntext/html=%s\nx-scheme-handler/http=%s\nx-scheme-handler/https=%s\n' "$BROWSER_DESKTOP" "$BROWSER_DESKTOP" "$BROWSER_DESKTOP" > /etc/xdg/mimeapps.list; \
     fi && \
     ######################################################################################################
     if [ "$ENABLE_app_store_ARG" = "true" ] && [ "$BUILD_KDE" != "none" ]; then \

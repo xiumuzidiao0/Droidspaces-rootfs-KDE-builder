@@ -1,5 +1,5 @@
 ARG TARGETPLATFORM
-FROM ubuntu:24.04 AS customizer
+FROM debian:bookworm AS customizer
 
 #######################################################
 ARG BUILD_KDE
@@ -20,6 +20,10 @@ ARG ENABLE_tmoe_ARG
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# 更新基础系统并启用 non-free（非自由）和 contrib 软件源
+RUN (sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list 2>/dev/null || sed -i 's/Components: main/Components: main contrib non-free non-free-firmware/g' /etc/apt/sources.list.d/debian.sources) && \
+    apt-get update && \
+    apt-get upgrade -y
 
 # 优先复制自定义脚本
 COPY scripts/download-firmware /usr/local/bin/
@@ -45,36 +49,28 @@ RUN apt-get update && \
     kmod tzdata && \
     ############################################## KDE支持 ################################################
     # 最小化KDE
-    # 解除底层系统对中文等翻译文件(.mo)的剔除规则，防止安装桌面时丢包
-    sed -i 's|^path-exclude=/usr/share/locale/\*/LC_MESSAGES/\*.mo|#&|' /etc/dpkg/dpkg.cfg.d/excludes || true && \
     if [ "$BUILD_KDE" = "min" ]; then \
         apt-get install -y --no-install-recommends \
         dbus-x11 x11-xserver-utils fonts-noto-cjk fonts-noto-color-emoji kde-plasma-desktop pipewire pipewire-pulse wireplumber powerdevil kscreen plasma-pa ark kwin-x11 upower konsole \
-        dolphin kate kinfocenter mesa-utils pulseaudio-utils vulkan-tools  dbus-user-session polkit-kde-agent-1; \
+        dolphin kate kinfocenter mesa-utils pulseaudio-utils vulkan-tools  desktop-base dbus-user-session; \
     fi && \
     # 精简KDE
     if [ "$BUILD_KDE" = "conc" ]; then \
         apt-get install -y --no-install-recommends \
-        dbus-x11 x11-xserver-utils fonts-noto-cjk fonts-noto-color-emoji kde-plasma-desktop kubuntu-settings-desktop kubuntu-wallpapers \
-        pipewire pipewire-pulse wireplumber powerdevil kscreen plasma-pa ark kwin-x11 upower konsole \
-        dolphin kate kinfocenter mesa-utils pulseaudio-utils vulkan-tools dbus-user-session aha clinfo dmidecode libdisplay-info-bin pciutils wayland-utils xserver-xorg \
-        kfind plasma-systemmonitor filelight glmark2 systemsettings kde-config-screenlocker kio-extras xdg-user-dirs dolphin-plugins ffmpegthumbs kdegraphics-thumbnailers \
-        kimageformat-plugins plasma-browser-integration libcanberra-pulse gstreamer1.0-plugins-base gstreamer1.0-plugins-good sound-theme-freedesktop \
-        polkit-kde-agent-1 libpam-systemd libpam-modules libpam-kwallet5 language-pack-kde-zh-hans language-pack-zh-hans qt6-translations-l10n; \
+        dbus-x11 x11-xserver-utils fonts-noto-cjk fonts-noto-color-emoji kde-plasma-desktop pipewire pipewire-pulse wireplumber powerdevil kscreen plasma-pa ark kwin-x11 upower konsole \
+        dolphin kate kinfocenter mesa-utils pulseaudio-utils vulkan-tools  desktop-base dbus-user-session aha clinfo dmidecode pciutils wayland-utils xserver-xorg \
+        kfind plasma-systemmonitor filelight glmark2 vkmark systemsettings kde-config-screenlocker kio-extras xdg-user-dirs dolphin-plugins ffmpegthumbs kdegraphics-thumbnailers \
+        kimageformat-plugins webext-plasma-browser-integration libcanberra-pulse gstreamer1.0-plugins-base gstreamer1.0-plugins-good sound-theme-freedesktop \
+        systemsettings kde-config-screenlocker kio-extras xdg-user-dirs; \
     fi && \
     if [ "$BUILD_BROWSER" = "firefox" ] && [ "$BUILD_KDE" != "none" ]; then \
-        install -d -m 0755 /etc/apt/keyrings && \
-        wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O /etc/apt/keyrings/packages.mozilla.org.asc && \
-        echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" > /etc/apt/sources.list.d/mozilla.list && \
-        printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' > /etc/apt/preferences.d/mozilla && \
-        apt-get update && \
-        apt-get install -y --no-install-recommends firefox; \
+        apt-get install -y --no-install-recommends firefox-esr; \
     elif [ "$BUILD_BROWSER" = "chromium" ] && [ "$BUILD_KDE" != "none" ]; then \
-        apt-get install -y --no-install-recommends chromium-browser; \
+        apt-get install -y --no-install-recommends chromium chromium-l10n; \
     fi && \
     if [ "$BUILD_BROWSER" != "none" ] && [ "$BUILD_KDE" != "none" ]; then \
-        BROWSER_DESKTOP="firefox.desktop"; \
-        if [ "$BUILD_BROWSER" = "chromium" ]; then BROWSER_DESKTOP="chromium-browser.desktop"; fi; \
+        BROWSER_DESKTOP="firefox-esr.desktop"; \
+        if [ "$BUILD_BROWSER" = "chromium" ]; then BROWSER_DESKTOP="chromium.desktop"; fi; \
         mkdir -p /etc/xdg && \
         printf '[Default Applications]\ntext/html=%s\nx-scheme-handler/http=%s\nx-scheme-handler/https=%s\n' "$BROWSER_DESKTOP" "$BROWSER_DESKTOP" "$BROWSER_DESKTOP" > /etc/xdg/mimeapps.list; \
     fi && \
@@ -111,7 +107,7 @@ RUN apt-get update && \
     ## docker (可选)
     if [ "$ENABLE_docker_ARG" = "true" ]; then \
         apt-get install -y --no-install-recommends \
-        docker.io docker-compose-v2; \
+        docker.io docker-compose docker-cli; \
     fi && \
     ## 集成tmoe (可选)
     if [ "$ENABLE_tmoe_ARG" = "true" ]; then \
@@ -145,9 +141,8 @@ RUN sed -i '/en_US.UTF-8/s/^# //' /etc/locale.gen && \
     sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config && \
     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     # 如果容器内存在默认的 debian 用户，则将其连同家目录一起删除
-    deluser --remove-home ubuntu || true && \
-    useradd -m -s /bin/bash "$USERNAME_ARG" && echo "${USERNAME_ARG}:1234" | chpasswd && \
-    systemctl enable ssh
+    deluser --remove-home debian || true && \
+    useradd -m -s /bin/bash "$USERNAME_ARG" && echo "${USERNAME_ARG}:1234" | chpasswd
 
 # 添加环境变量
 RUN cat <<'EOF' > /etc/environment
@@ -200,7 +195,7 @@ EOF_RUN
 RUN if [ "$ENABLE_mesa_ARG" = "true" ]; then \
         echo "--> [开启] 正在下载并安装最新版 Mesa 驱动..." && \
         URL=$(curl -s https://api.github.com/repos/lfdevs/mesa-for-android-container/releases/latest | \
-        jq -r '.assets[] | select(.name | test("mesa-for-android-container_.*_ubuntu_noble_arm64\\.tar\\.gz")) | .browser_download_url' | head -1) && \
+        jq -r '.assets[] | select(.name | test("mesa-for-android-container_.*_debian_bookworm_arm64\\.tar\\.gz")) | .browser_download_url' | head -1) && \
         if [ -z "$URL" ] || [ "$URL" = "null" ]; then echo "获取下载链接失败，可能是触发了 GitHub API 速率限制"; exit 1; fi && \
         wget -q --tries=5 --waitretry=3 -O /tmp/mesa.tar.gz "$URL" && \
         tar -zxf /tmp/mesa.tar.gz -C / && \
@@ -369,24 +364,14 @@ RUN if [ "$ENABLE_binfmt_ARG" = "true" ]; then \
         chmod 644 /etc/systemd/system/qemu-binfmt-register.service && \
         mkdir -p /etc/systemd/system/multi-user.target.wants && \
         ln -sf /etc/systemd/system/qemu-binfmt-register.service /etc/systemd/system/multi-user.target.wants/qemu-binfmt-register.service && \
-        apt-get purge -y qemu-* binfmt-support || true && \
+        (apt-get purge -y qemu-* binfmt-support || true) && \
         apt-get autoremove -y && \
         apt-get autoclean && \
-        rm -rf /var/lib/binfmts/* && \
-        rm -rf /etc/binfmt.d/* && \
-        rm -rf /usr/lib/binfmt.d/qemu-* && \
+        rm -rf /var/lib/binfmts/* /etc/binfmt.d/* /usr/lib/binfmt.d/qemu-* && \
         apt-get update && \
-        apt-get install -y qemu-user-static && \
-        apt-get install -y binfmt-support && \
+        apt-get install -y qemu-user-static binfmt-support && \
+        # 显式添加 amd64 异构架构支持
         dpkg --add-architecture amd64 && \
-        sed -i '/^Types: deb$/a Architectures: arm64 armhf' /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Types: deb" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "URIs: http://archive.ubuntu.com/ubuntu/" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Suites: noble noble-updates noble-security" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Components: main universe restricted multiverse" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Architectures: amd64" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >> /etc/apt/sources.list.d/ubuntu.sources && \
         apt-get update && \
         apt-get install -y libc6:amd64; \
     else \

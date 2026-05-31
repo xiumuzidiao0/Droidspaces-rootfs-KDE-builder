@@ -4,6 +4,7 @@ FROM ogarcia/archlinux AS customizer
 #######################################################
 ARG BUILD_KDE
 ARG PulseAudio
+ARG BUILD_BROWSER=firefox
 ARG USERNAME_ARG=Gold
 ARG ENABLE_zh_tz_ARG
 ARG ENABLE_binfmt_ARG
@@ -47,7 +48,18 @@ RUN sed -i '/^#ParallelDownloads/s/^#//' /etc/pacman.conf && \
         xorg-xrandr noto-fonts-cjk noto-fonts-emoji plasma-desktop pipewire pipewire-pulse wireplumber powerdevil kscreen plasma-pa ark kwin kwin-x11 upower konsole \
         dolphin kate kinfocenter mesa-utils libpulse vulkan-tools aha clinfo dmidecode pciutils wayland-utils xorg-server \
         kfind plasma-systemmonitor filelight glmark2 vkmark systemsettings kscreenlocker kio-extras xdg-user-dirs dolphin-plugins ffmpegthumbs kdegraphics-thumbnailers \
-        kimageformats plasma-browser-integration libcanberra gstreamer gst-plugins-base gst-plugins-good sound-theme-freedesktop chromium; \
+        kimageformats plasma-browser-integration libcanberra gstreamer gst-plugins-base gst-plugins-good sound-theme-freedesktop; \
+    fi && \
+    if [ "$BUILD_BROWSER" = "firefox" ] && [ "$BUILD_KDE" != "none" ]; then \
+        pacman -S --noconfirm --needed firefox; \
+    elif [ "$BUILD_BROWSER" = "chromium" ] && [ "$BUILD_KDE" != "none" ]; then \
+        pacman -S --noconfirm --needed chromium; \
+    fi && \
+    if [ "$BUILD_BROWSER" != "none" ] && [ "$BUILD_KDE" != "none" ]; then \
+        BROWSER_DESKTOP="firefox.desktop"; \
+        if [ "$BUILD_BROWSER" = "chromium" ]; then BROWSER_DESKTOP="chromium.desktop"; fi; \
+        mkdir -p /etc/xdg && \
+        printf '[Default Applications]\ntext/html=%s\nx-scheme-handler/http=%s\nx-scheme-handler/https=%s\n' "$BROWSER_DESKTOP" "$BROWSER_DESKTOP" "$BROWSER_DESKTOP" > /etc/xdg/mimeapps.list; \
     fi && \
     # Arch 强制安装，但是这玩意不开硬件访问会导致桌面闪退
     if [ "$BUILD_KDE" = "conc" ] || [ "$BUILD_KDE" = "min" ] ; then \

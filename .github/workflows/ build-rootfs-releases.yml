@@ -10,8 +10,10 @@ on:
         default: 'Debian-13-KDE'
         options:                           
           - 'Debian-13-KDE'  
+          - 'Debian-12-KDE'
           - 'Ubuntu-24-KDE'
           - 'Ubuntu-25-KDE'
+          - 'Fedora-42-KDE'
           - 'Fedroa-43-KDE'
           - 'Arch-KDE'
           - 'all'
@@ -32,6 +34,15 @@ on:
         options: 
           - 'socket'
           - 'tcp'
+          - 'none'
+      build_browser:
+        description: '默认浏览器'
+        required: true
+        type: choice
+        default: 'firefox'
+        options:
+          - 'firefox'
+          - 'chromium'
           - 'none'
       rootfs_username:
         description: 'RootFS default username'
@@ -149,6 +160,7 @@ jobs:
             -v "${{ needs.setup.outputs.build_id }}" \
             -K "${{ inputs.build_KDE }}" \
             -P "${{ inputs.PulseAudio }}" \
+            -w "${{ inputs.build_browser }}" \
             -u "${{ inputs.rootfs_username }}" \
             -g "${{ inputs.enable_zh_tz }}" \
             -a "${{ inputs.enable_binfmt }}" \
@@ -212,6 +224,7 @@ jobs:
             构建选项:
             - **KDE 桌面**: ${{ github.event.inputs.build_KDE }}
             - PulseAudio 音频转发: ${{ github.event.inputs.PulseAudio }}
+            - 默认浏览器: ${{ github.event.inputs.build_browser }}
             - RootFS 默认用户名: ${{ github.event.inputs.rootfs_username }}
             - 使用中文作为主语言: ${{ github.event.inputs.enable_zh_tz }}
             - 高通骁龙 GPU 支持: ${{ github.event.inputs.enable_mesa }}

@@ -13,6 +13,7 @@ ARG ENABLE_kfgj_ARG
 ARG ENABLE_zip_ARG
 ARG ENABLE_docker_ARG
 ARG ENABLE_srf_ARG
+ARG ENABLE_app_store_ARG
 ARG ENABLE_tmoe_ARG
 ######################################################
 
@@ -46,6 +47,9 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         kf6-kimageformats plasma-browser-integration libcanberra-gtk3 gstreamer1-plugins-base gstreamer1-plugins-good sound-theme-freedesktop chromium plasma-workspace plasma-workspace-x11 kwin-x11; \
     fi && \
     ######################################################################################################
+    if [ "$ENABLE_app_store_ARG" = "true" ] && [ "$BUILD_KDE" != "none" ]; then \
+        dnf install -y --setopt=install_weak_deps=False plasma-discover; \
+    fi && \
     # 输入法 fcitx5 (可选)
     if [ "$ENABLE_srf_ARG" = "true" ]; then \
         dnf install -y  fcitx5 fcitx5-qt fcitx5-gtk ; \

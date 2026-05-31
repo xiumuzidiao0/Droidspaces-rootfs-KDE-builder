@@ -4,8 +4,9 @@ DATE=$(date +%Y%m%d)      # 获取当前日期
 ARCH=$(uname -m)          # 获取当前系统架构
 ENABLE_binfmt="false"
 USERNAME="Gold"
+ENABLE_app_store="false"
 # 解析输入参数 (-i 指定 Dockerfile，-v 指定版本号)
-while getopts "i:v:K:P:u:a:b:c:d:e:f:g:h:j:" opt; do
+while getopts "i:v:K:P:u:a:b:c:d:e:f:g:h:s:j:" opt; do
   case $opt in
     i) DOCKERFILE="$OPTARG" ;; # -i 参数赋值给 DOCKERFILE 变量
     v) VERSION="$OPTARG" ;;    # -v 参数赋值给 VERSION 变量
@@ -20,6 +21,7 @@ while getopts "i:v:K:P:u:a:b:c:d:e:f:g:h:j:" opt; do
     e) ENABLE_zip="$OPTARG" ;; 
     f) ENABLE_docker="$OPTARG" ;; 
     h) ENABLE_srf="$OPTARG" ;; # 输入法 fcitx5
+    s) ENABLE_app_store="$OPTARG" ;; # KDE Discover app store
     j) ENABLE_tmoe="$OPTARG" ;; # tmoe
     *) echo "用法: $0 -i <template.Dockerfile> [-v <version>]" ; exit 1 ;;
   esac
@@ -96,6 +98,7 @@ docker buildx build \
   --build-arg ENABLE_zip_ARG="$ENABLE_zip" \
   --build-arg ENABLE_docker_ARG="$ENABLE_docker" \
   --build-arg ENABLE_srf_ARG="$ENABLE_srf" \
+  --build-arg ENABLE_app_store_ARG="$ENABLE_app_store" \
   --build-arg ENABLE_tmoe_ARG="$ENABLE_tmoe" \
   -f "$DOCKERFILE" \
   .

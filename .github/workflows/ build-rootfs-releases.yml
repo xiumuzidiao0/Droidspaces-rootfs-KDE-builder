@@ -58,6 +58,11 @@ on:
         required: true
         type: boolean
         default: false
+      enable_app_store:
+        description: 'Install KDE Discover app store'
+        required: true
+        type: boolean
+        default: false
       enable_binfmt:
         description: '开启 跨架构 支持'
         required: true
@@ -153,6 +158,7 @@ jobs:
             -e "${{ inputs.enable_zip }}" \
             -f "${{ inputs.enable_docker }}" \
             -h "${{ inputs.enable_srf }}" \
+            -s "${{ inputs.enable_app_store }}" \
             -j "${{ inputs.enable_tmoe }}"
 
       - name: 上传构建产物
@@ -211,6 +217,7 @@ jobs:
             - 高通骁龙 GPU 支持: ${{ github.event.inputs.enable_mesa }}
             - 集成 TMOE : ${{ github.event.inputs.enable_tmoe }}
             - 输入法 fcitx5 支持: ${{ github.event.inputs.enable_srf }}
+            - KDE Discover 软件商店: ${{ github.event.inputs.enable_app_store }}
             - 跨架构支持: ${{ github.event.inputs.enable_binfmt }}
             - 容器硬件与网络识别支持: ${{ github.event.inputs.enable_yj }}
             - 开发工具集成: ${{ github.event.inputs.enable_kfgj }}

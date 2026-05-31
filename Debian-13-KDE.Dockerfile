@@ -13,6 +13,7 @@ ARG ENABLE_kfgj_ARG
 ARG ENABLE_zip_ARG
 ARG ENABLE_docker_ARG
 ARG ENABLE_srf_ARG
+ARG ENABLE_app_store_ARG
 ARG ENABLE_tmoe_ARG
 ######################################################
 
@@ -62,6 +63,9 @@ RUN apt-get update && \
         systemsettings kde-config-screenlocker kio-extras xdg-user-dirs; \
     fi && \
     ######################################################################################################
+    if [ "$ENABLE_app_store_ARG" = "true" ] && [ "$BUILD_KDE" != "none" ]; then \
+        apt-get install -y --no-install-recommends plasma-discover; \
+    fi && \
     #输入法 fcitx5 (可选)
     if [ "$ENABLE_srf_ARG" = "true" ]; then \
         apt-get install -y fcitx5; \

@@ -13,6 +13,7 @@ ARG ENABLE_kfgj_ARG
 ARG ENABLE_zip_ARG
 ARG ENABLE_docker_ARG
 ARG ENABLE_srf_ARG
+ARG ENABLE_app_store_ARG
 ARG ENABLE_tmoe_ARG
 ######################################################
 
@@ -52,6 +53,9 @@ RUN sed -i '/^#ParallelDownloads/s/^#//' /etc/pacman.conf && \
     if [ "$BUILD_KDE" = "conc" ] || [ "$BUILD_KDE" = "min" ] ; then \
         mv /usr/lib/xdg-desktop-portal /usr/lib/xdg-desktop-portal.bak && \
         mv /usr/lib/xdg-desktop-portal-kde /usr/lib/xdg-desktop-portal-kde.bak; \
+    fi && \
+    if [ "$ENABLE_app_store_ARG" = "true" ] && [ "$BUILD_KDE" != "none" ]; then \
+        pacman -S --noconfirm --needed discover; \
     fi && \
     ######################################################################################################
     #输入法 fcitx5 (可选)

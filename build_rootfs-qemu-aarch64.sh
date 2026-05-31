@@ -6,13 +6,15 @@
 : "${VERSION:=dev}"
 DATE=$(date +%Y%m%d)
 USERNAME="Gold"
+ENABLE_app_store="false"
 
 # Parse arguments
-while getopts "i:v:u:" opt; do
+while getopts "i:v:u:s:" opt; do
   case $opt in
     i) DOCKERFILE="$OPTARG" ;;
     v) VERSION="$OPTARG" ;;
     u) USERNAME="$OPTARG" ;;
+    s) ENABLE_app_store="$OPTARG" ;;
     *) echo "Usage: $0 -i <template.Dockerfile> [-v <version>]" ; exit 1 ;;
   esac
 done
@@ -40,6 +42,7 @@ echo " Starting Build: $PREFIX"
 echo " Using Template: $DOCKERFILE"
 echo " Build Version : $VERSION"
 echo " RootFS User   : $USERNAME"
+echo " App Store     : $ENABLE_app_store"
 echo "========================================================="
 
 # 1. Environment Initialization
@@ -70,6 +73,7 @@ docker buildx build \
   --target export \
   --output type=tar,dest="$TEMP_TAR" \
   --build-arg USERNAME_ARG="$USERNAME" \
+  --build-arg ENABLE_app_store_ARG="$ENABLE_app_store" \
   -f "$DOCKERFILE" \
   .
 

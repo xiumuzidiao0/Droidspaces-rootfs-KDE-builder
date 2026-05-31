@@ -337,12 +337,8 @@ RUN if [ "$ENABLE_binfmt_ARG" = "false" ]; then \
     fi
 
 RUN if [ "$ENABLE_binfmt_ARG" = "true" ]; then \
-        chmod +x /usr/local/bin/qemu-binfmt-register.sh && \
-        chmod 644 /etc/systemd/system/qemu-binfmt-register.service && \
-        mkdir -p /etc/systemd/system/multi-user.target.wants && \
-        ln -sf /etc/systemd/system/qemu-binfmt-register.service /etc/systemd/system/multi-user.target.wants/qemu-binfmt-register.service && \
-        pacman -S --noconfirm --needed qemu-user-static && \
-        rm -rf /var/cache/pacman/pkg/* /var/lib/pacman/sync/* ; \
+        echo "Arch Linux rootfs does not support qemu-user-static/binfmt in this builder; skipping binfmt setup." && \
+        rm -f /usr/local/bin/qemu-binfmt-register.sh /etc/systemd/system/qemu-binfmt-register.service; \
     else \
         rm -f /usr/local/bin/qemu-binfmt-register.sh /etc/systemd/system/qemu-binfmt-register.service; \
     fi

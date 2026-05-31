@@ -68,7 +68,16 @@ RUN apt-get update && \
     fi && \
     ######################################################################################################
     if [ "$ENABLE_app_store_ARG" = "true" ] && [ "$BUILD_KDE" != "none" ]; then \
-        apt-get install -y --no-install-recommends plasma-discover; \
+        apt-get install -y --no-install-recommends plasma-discover packagekit packagekit-tools polkit-kde-agent-1 && \
+        mkdir -p /etc/polkit-1/rules.d && \
+        printf '%s\n' \
+        'polkit.addRule(function(action, subject) {' \
+        '    if (action.id.indexOf("org.freedesktop.packagekit.") === 0 &&' \
+        '        (subject.isInGroup("sudo") || subject.isInGroup("wheel"))) {' \
+        '        return polkit.Result.YES;' \
+        '    }' \
+        '});' \
+        > /etc/polkit-1/rules.d/49-droidspaces-packagekit.rules; \
     fi && \
     #输入法 fcitx5 (可选)
     if [ "$ENABLE_srf_ARG" = "true" ]; then \

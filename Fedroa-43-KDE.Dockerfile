@@ -48,7 +48,16 @@ RUN dnf install -y --setopt=install_weak_deps=False \
     fi && \
     ######################################################################################################
     if [ "$ENABLE_app_store_ARG" = "true" ] && [ "$BUILD_KDE" != "none" ]; then \
-        dnf install -y --setopt=install_weak_deps=False plasma-discover; \
+        dnf install -y --setopt=install_weak_deps=False plasma-discover plasma-discover-packagekit PackageKit PackageKit-Qt6 polkit-kde && \
+        mkdir -p /etc/polkit-1/rules.d && \
+        printf '%s\n' \
+        'polkit.addRule(function(action, subject) {' \
+        '    if (action.id.indexOf("org.freedesktop.packagekit.") === 0 &&' \
+        '        (subject.isInGroup("sudo") || subject.isInGroup("wheel"))) {' \
+        '        return polkit.Result.YES;' \
+        '    }' \
+        '});' \
+        > /etc/polkit-1/rules.d/49-droidspaces-packagekit.rules; \
     fi && \
     # 输入法 fcitx5 (可选)
     if [ "$ENABLE_srf_ARG" = "true" ]; then \

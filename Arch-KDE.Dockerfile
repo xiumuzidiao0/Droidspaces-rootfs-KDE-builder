@@ -55,7 +55,16 @@ RUN sed -i '/^#ParallelDownloads/s/^#//' /etc/pacman.conf && \
         mv /usr/lib/xdg-desktop-portal-kde /usr/lib/xdg-desktop-portal-kde.bak; \
     fi && \
     if [ "$ENABLE_app_store_ARG" = "true" ] && [ "$BUILD_KDE" != "none" ]; then \
-        pacman -S --noconfirm --needed discover; \
+        pacman -S --noconfirm --needed discover packagekit packagekit-qt6 polkit-kde-agent && \
+        mkdir -p /etc/polkit-1/rules.d && \
+        printf '%s\n' \
+        'polkit.addRule(function(action, subject) {' \
+        '    if (action.id.indexOf("org.freedesktop.packagekit.") === 0 &&' \
+        '        (subject.isInGroup("sudo") || subject.isInGroup("wheel"))) {' \
+        '        return polkit.Result.YES;' \
+        '    }' \
+        '});' \
+        > /etc/polkit-1/rules.d/49-droidspaces-packagekit.rules; \
     fi && \
     ######################################################################################################
     #输入法 fcitx5 (可选)
